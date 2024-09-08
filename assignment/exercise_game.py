@@ -6,12 +6,18 @@ from machine import Pin
 import time
 import random
 import json
+import network
+import urequests
+import socket
+from time import sleep
+import machine
 
 
-N: int = 3
+N: int = 10
 sample_ms = 10.0
 on_ms = 500
-
+ssid = "BU Guest (unencrypted)"
+password = ''
 
 def random_time_interval(tmin: float, tmax: float) -> float:
     """return a random time interval between max and min"""
@@ -58,7 +64,10 @@ def scorer(t: list[int | None]) -> None:
     # and score (non-misses / total flashes) i.e. the score a floating point number
     # is in range [0..1]
     data = {}
-
+    minimum = min(t_good)
+    maximum = max(t_good)
+    average = sum(t_good)/len(t_good)
+    score = len(t_good)/len(t)
     # %% make dynamic filename and write JSON
 
     now: tuple[int] = time.localtime()
@@ -69,13 +78,22 @@ def scorer(t: list[int | None]) -> None:
     print("write", filename)
 
     write_json(filename, data)
+    #print out the information to send to database url
 
+def wificonnect():
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    wlan.connect(ssid, password)
+    while wlan.isconnected() == false:
+        print('Waiting for connection')
+        sleep(1)
+    print(wlan.ifconfig())
 
 if __name__ == "__main__":
     # using "if __name__" allows us to reuse functions in other script files
 
     led = Pin("LED", Pin.OUT)
-    button = Pin(16, Pin.IN, Pin.PULL_UP)
+    button = Pin(28, Pin.IN, Pin.PULL_UP)
 
     t: list[int | None] = []
 
@@ -94,9 +112,9 @@ if __name__ == "__main__":
                 led.low()
                 break
         t.append(t0)
-
+        print(t0)
         led.low()
 
     blinker(5, led)
-
+    
     scorer(t)
