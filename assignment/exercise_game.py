@@ -12,6 +12,9 @@ import socket
 from time import sleep
 import machine
 
+API_KEY = "AIzaSyB4QIJ0tW-vFUfx-dFCoXmCBJvmnAdqwFg"  
+FIREBASE_URL = f"https://miniproject-ba9b3-default-rtdb.firebaseio.com/scores.json?auth={API_KEY}"
+
 
 N: int = 10
 sample_ms = 10.0
@@ -60,40 +63,38 @@ def scorer(t: list[int | None]) -> None:
 
     print(t_good)
 
-    # add key, value to this dict to store the minimum, maximum, average response time
-    # and score (non-misses / total flashes) i.e. the score a floating point number
-    # is in range [0..1]
-    data = {}
-    minimum = min(t_good)
-    maximum = max(t_good)
-    average = sum(t_good)/len(t_good)
-    score = len(t_good)/len(t)
-    # %% make dynamic filename and write JSON
+    # Prepare data to be sent to Firebase
+    data = {
+        "minimum": min(t_good) if t_good else None,
+        "maximum": max(t_good) if t_good else None,
+        "average": sum(t_good)/len(t_good) if t_good else None,
+        "score": len(t_good)/len(t) if t else 0,
+        "misses": misses
+    }
 
-    now: tuple[int] = time.localtime()
+    # Send the data to Firebase
+    response = urequests.post(FIREBASE_URL, json=data)
+    if response.status_code == 200:
+        print("Data sent successfully!")
+    else:
+        print(f"Failed to send data. Status code: {response.status_code}")
 
-    now_str = "-".join(map(str, now[:3])) + "T" + "_".join(map(str, now[3:6]))
-    filename = f"score-{now_str}.json"
-
-    print("write", filename)
-
-    write_json(filename, data)
-    #print out the information to send to database url
+    response.close()
 
 def wificonnect():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     wlan.connect(ssid, password)
-    while wlan.isconnected() == false:
+    while not wlan.isconnected():
         print('Waiting for connection')
         sleep(1)
-    print(wlan.ifconfig())
+    print('Connected. Network config:', wlan.ifconfig())
 
 if __name__ == "__main__":
     # using "if __name__" allows us to reuse functions in other script files
-
+    wificonnect()
     led = Pin("LED", Pin.OUT)
-    button = Pin(28, Pin.IN, Pin.PULL_UP)
+    button = Pin(16, Pin.IN, Pin.PULL_UP)
 
     t: list[int | None] = []
 
